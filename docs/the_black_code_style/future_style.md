@@ -97,6 +97,9 @@ Currently, the following features are included in the preview style:
 - `end_fmt_off_at_closing_bracket`: Correctly indent `# fmt: off` comments inside
   brackets, such as function calls, and fix a crash when one comes right before a lone
   name, number or string.
+- `parenthesize_unsplittable_keyword_arguments`: Parenthesize the value of a keyword
+  argument when it would otherwise make the line exceed the line length.
+  ([see below](labels/parenthesize-unsplittable-keyword-arguments))
 
 (labels/remove-redundant-top-level-parentheses)=
 
@@ -777,6 +780,27 @@ def f():
         long_variable_name_three,
         long_variable_name_four,
     )
+```
+
+(labels/parenthesize-unsplittable-keyword-arguments)=
+
+### Parenthesize unsplittable keyword argument values
+
+A keyword argument value that Black cannot split gets parentheses when the argument
+would otherwise exceed the line length, the same way as assignment right-hand sides:
+
+```python
+# Before
+func(
+    long_long_long_long_long_long_long_long_long_long_long_arg=long_long_long_long_long_class.long_long_long_long_attr
+)
+
+# After (with --preview)
+func(
+    long_long_long_long_long_long_long_long_long_long_long_arg=(
+        long_long_long_long_long_class.long_long_long_long_attr
+    )
+)
 ```
 
 ## Unstable style

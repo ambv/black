@@ -97,6 +97,8 @@
   contains standalone comments (#5638, #5657)
 - Retain user-written parens around `in` clauses of comprehensions if they have
   delimiters (#4881)
+- Parenthesize the value of a keyword argument when it would otherwise make the line
+  exceed the line length (#5592)
 - Fix crash when `# fmt: skip` is on the opening bracket of a collection used as a
   binary operand and the expression is split at a short line length (#5609)
 - Remove redundant parentheses around simple top-level expressions (#5516)
