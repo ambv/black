@@ -32,9 +32,11 @@ Black will not reformat lines that contain `# fmt: skip` or blocks that start wi
 pragmas/comments either with multiple comments (e.g. `# fmt: skip # pylint # noqa`) or
 as a semicolon separated list (e.g. `# fmt: skip; pylint; noqa`). `# fmt: on/off` must
 be on the same level of indentation and in the same block, meaning no unindents beyond
-the initial indentation level between them. Black also recognizes
-[YAPF](https://github.com/google/yapf)'s block comments to the same effect, as a
-courtesy for straddling code.
+the initial indentation level between them. A `# fmt: off` without a matching
+`# fmt: on` ends implicitly at the first unindent beyond its indentation level or, if it
+is inside brackets, at the closing bracket. At the top level, it lasts until the end of
+the file. Black also recognizes [YAPF](https://github.com/google/yapf)'s block comments
+to the same effect, as a courtesy for straddling code.
 
 ### Command line options
 
