@@ -470,9 +470,9 @@ def _is_fmt_off_region_before_newline(leaf: Leaf) -> bool:
     newline after it in the prefix of the next leaf, even when it ends with the
     comments that end the region.
     """
-    if leaf.fmt_pass_converted_first_leaf is None or not contains_fmt_directive(
-        leaf.value.partition("\n")[0], FMT_OFF
-    ):
+    if leaf.fmt_pass_converted_first_leaf is None:
+        return False
+    if not contains_fmt_directive(leaf.value.partition("\n")[0], FMT_OFF):
         return False
 
     node: LN | None = leaf
@@ -483,6 +483,27 @@ def _is_fmt_off_region_before_newline(leaf: Leaf) -> bool:
 
     next_leaf = first_leaf_of(node.next_sibling)
     return next_leaf is not None and next_leaf.prefix.startswith("\n")
+
+
+def _needs_newline_after(hidden: Leaf, next_node: LN | None) -> bool:
+    """Return whether the code in `hidden` must end its line before `next_node`.
+
+    This is checked when both are hidden again by an outer `# fmt: skip` or
+    `# fmt: off`.
+    """
+    if next_node is None:
+        return True
+    if hidden.fmt_pass_converted_first_leaf is None:
+        # A comment-only fmt:off/on block ends with the `# fmt: on` comment
+        return True
+    if isinstance(next_node, Leaf) and next_node.type == STANDALONE_COMMENT:
+        return True
+    if _is_fmt_off_region_before_newline(hidden):
+        # The newline is already in the prefix of the next leaf
+        return False
+    # The newline ends a trailing comment, like `B,  # fmt: skip` in a class header:
+    # it was taken along with the comment from the prefix of `)`
+    return "\n" in next_node.prefix or "#" in str(hidden).rpartition("\n")[2]
 
 
 def _handle_regular_fmt_block(
@@ -515,22 +536,7 @@ def _handle_regular_fmt_block(
     # This prevents multiple fmt: skip comments from being concatenated on one line
     def stringify_standalone_comment(node: Leaf, next_node: LN | None) -> str:
         node_str = str(node)
-        if not node_str.endswith("\n") and (
-            next_node is None
-            # A comment-only fmt:off/on block ends with the `# fmt: on` comment
-            or node.fmt_pass_converted_first_leaf is None
-            or (isinstance(next_node, Leaf) and next_node.type == STANDALONE_COMMENT)
-            or (
-                not _is_fmt_off_region_before_newline(node)
-                and (
-                    "\n" in next_node.prefix
-                    # The newline ends a trailing comment, like `B,  # fmt: skip` in a
-                    # class header: it was taken along with the comment from the
-                    # prefix of `)`
-                    or "#" in node_str.rpartition("\n")[2]
-                )
-            )
-        ):
+        if not node_str.endswith("\n") and _needs_newline_after(node, next_node):
             node_str += "\n"
         return node_str
 
@@ -555,23 +561,20 @@ def _handle_regular_fmt_block(
                     if isinstance(n, Leaf):
                         if n.type == STANDALONE_COMMENT:
                             result = n.prefix + n.value
-                            newline_follows = _is_fmt_off_region_before_newline(n)
+                            if _is_fmt_off_region_before_newline(n):
+                                # The newline is in the prefix of the next leaf
+                                return result
                             if (
                                 isinstance(next_node, Leaf)
                                 and next_node.type in CLOSING_BRACKETS
                                 and "\n" in n.value
-                                and not newline_follows
                             ):
                                 result = _remove_preceding_newline_for_comment(result)
                             # The newline ends a trailing comment. A skipped block
                             # that ends in code, like the `)` of an inner
                             # `(  # fmt: skip` block, is followed by its own source.
                             last_line = result.rpartition("\n")[2]
-                            if (
-                                not result.endswith("\n")
-                                and "#" in last_line
-                                and not newline_follows
-                            ):
+                            if not result.endswith("\n") and "#" in last_line:
                                 result += "\n"
                             return result
                         return str(n)
