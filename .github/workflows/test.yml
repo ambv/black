@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12.10", "3.13", "3.14", "3.15", "pypy3.12"]
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15", "pypy3.12"]
         os: [ubuntu-latest, macos-latest, windows-latest, windows-11-arm]
         exclude:
           # setup-python only supports CPython 3.11+ on arm64 windows
