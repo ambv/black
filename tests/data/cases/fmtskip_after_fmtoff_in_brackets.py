@@ -8,12 +8,6 @@ x = [
 
 x = [
     # fmt: off
-    a,  b
-    # comment
-]  # fmt: skip
-
-x = [
-    # fmt: off
     a,  b  # comment
     # fmt: on
 ]  # fmt: skip
@@ -45,12 +39,6 @@ class C(
 x = [
 # fmt: off
     a,  b  # comment
-]  # fmt: skip
-
-x = [
-# fmt: off
-    a,  b
-    # comment
 ]  # fmt: skip
 
 x = [
