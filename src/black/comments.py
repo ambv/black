@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Final, Union
 
-from black.mode import Mode
+from black.mode import Mode, Preview
 from black.nodes import (
     CLOSING_BRACKETS,
     OPENING_BRACKETS,
@@ -789,14 +789,15 @@ def generate_ignored_nodes(
                 # This can happen when there is no matching `# fmt: on` comment at the
                 # same level as `# fmt: on`. We need to keep this DEDENT.
                 return
-            if container.type in CLOSING_BRACKETS:
-                if not open_brackets:
-                    # This closes the brackets that `# fmt: off` is in. Without a
-                    # `# fmt: on`, the region ends at the end of the brackets.
-                    return
-                open_brackets -= 1
-            elif container.type in OPENING_BRACKETS:
-                open_brackets += 1
+            if Preview.end_fmt_off_at_closing_bracket in mode:
+                if container.type in CLOSING_BRACKETS:
+                    if not open_brackets:
+                        # This closes the brackets that `# fmt: off` is in. Without a
+                        # `# fmt: on`, the region ends at the end of the brackets.
+                        return
+                    open_brackets -= 1
+                elif container.type in OPENING_BRACKETS:
+                    open_brackets += 1
             yield container
             container = container.next_sibling
 

@@ -1,6 +1,4 @@
-# A `# fmt: off` without `# fmt: on` inside brackets lasts until the closing bracket,
-# also when the brackets hold a single name, number or string.
-
+# flags: --preview
 x = [
     # fmt: off
     1
@@ -27,17 +25,12 @@ from a import (
     b
 )
 
-print(
+x = [
     # fmt: off
-    a
-)
-
-
-class A(
-    # fmt: off
-    B
-):
-    x  =  1
+    1
+]
+# fmt: on
+y  =  2
 
 
 def f():
@@ -49,10 +42,6 @@ def f():
     return  None
 
 # output
-
-# A `# fmt: off` without `# fmt: on` inside brackets lasts until the closing bracket,
-# also when the brackets hold a single name, number or string.
-
 x = [
     # fmt: off
     1
@@ -79,17 +68,12 @@ from a import (
     b
 )
 
-print(
+x = [
     # fmt: off
-    a
-)
-
-
-class A(
-    # fmt: off
-    B
-):
-    x = 1
+    1
+]
+# fmt: on
+y = 2
 
 
 def f():

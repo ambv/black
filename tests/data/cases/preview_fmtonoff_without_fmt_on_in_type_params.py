@@ -1,4 +1,4 @@
-# flags: --minimum-version=3.12
+# flags: --preview --minimum-version=3.12
 # Type parameters are direct children of their brackets. A `# fmt: off` without
 # `# fmt: on` before them still ends at the closing bracket.
 
