@@ -77,6 +77,7 @@ from black.nodes import (
     is_vararg,
     is_walrus_assignment,
     is_yield,
+    last_leaf,
     syms,
     wrap_in_parentheses,
 )
@@ -202,8 +203,19 @@ class LineGenerator(Visitor[Line]):
             and first.value in {"if", "else"}
             and not self.current_line.bracket_tracker.any_open_brackets()
         )
+        # A `# fmt: skip` on the last line of a multi-line expression, as in `a` ...
+        # `if c else d,  # fmt: skip`, hides only the code on that line, which ends
+        # this node. That code can include what follows the node on the same line,
+        # like the comma after an element of a collection, so a closing parenthesis
+        # added after it would end up after that comma.
+        last = last_leaf(node)
+        ends_with_fmt_skip = (
+            last is not None
+            and last.type == STANDALONE_COMMENT
+            and last.fmt_pass_converted_first_leaf is not None
+        )
 
-        if not already_parenthesized and not follows_fmt_skip:
+        if not (already_parenthesized or follows_fmt_skip or ends_with_fmt_skip):
             # Similar to logic in wrap_in_parentheses
             lpar = Leaf(token.LPAR, "")
             rpar = Leaf(token.RPAR, "")

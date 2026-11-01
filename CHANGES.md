@@ -16,6 +16,8 @@
 
 <!-- Changes that affect Black's stable style -->
 
+- Fix `# fmt: skip` on the last line of a multi-line conditional expression in a
+  collection, like `a` ... `if c else d,  # fmt: skip`, producing invalid code (#5647)
 - Keep the optional parentheses around an assignment's right-hand side when removing
   them would produce a first line longer than the line length and the expression
   contains standalone comments (#5638)
