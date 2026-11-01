@@ -1204,16 +1204,10 @@ class EmptyLineTracker:
                         first_leaf_matches=is_import
                     )
                     and self.previous_line.leaves[0].line_ranges_selected is not None
+                    and not current_line.is_comment
                 )
             )
             and not current_line.is_import
-            and not (
-                current_line.is_comment and not current_line.is_fmt_pass_converted()
-            )
-            and not (
-                current_line.is_fmt_pass_converted()
-                and self.previous_line.is_fmt_pass_converted()
-            )
             and not current_line.is_fmt_pass_converted(first_leaf_matches=is_import)
             and depth == self.previous_line.depth
         ):
