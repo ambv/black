@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Final, Union
 
-from black.mode import Mode
+from black.mode import Mode, Preview
 from black.nodes import (
     CLOSING_BRACKETS,
     OPENING_BRACKETS,
@@ -462,6 +462,50 @@ def _remove_preceding_newline_for_comment(result: str) -> str:
     return result
 
 
+def _is_fmt_off_region_before_newline(leaf: Leaf) -> bool:
+    """Return whether `leaf` holds code hidden by `# fmt: off` that ends its line.
+
+    Unlike code hidden by `# fmt: skip` or a comment-only `# fmt: off` block, which
+    take the newline after their last comment, a `# fmt: off` region leaves the
+    newline after it in the prefix of the next leaf, even when it ends with the
+    comments that end the region.
+    """
+    if leaf.fmt_pass_converted_first_leaf is None:
+        return False
+    if not contains_fmt_directive(leaf.value.partition("\n")[0], FMT_OFF):
+        return False
+
+    node: LN | None = leaf
+    while node is not None and node.next_sibling is None:
+        node = node.parent
+    if node is None or node.next_sibling is None:
+        return False
+
+    next_leaf = first_leaf_of(node.next_sibling)
+    return next_leaf is not None and next_leaf.prefix.startswith("\n")
+
+
+def _needs_newline_after(hidden: Leaf, next_node: LN | None) -> bool:
+    """Return whether the code in `hidden` must end its line before `next_node`.
+
+    This is checked when both are hidden again by an outer `# fmt: skip` or
+    `# fmt: off`.
+    """
+    if next_node is None:
+        return True
+    if hidden.fmt_pass_converted_first_leaf is None:
+        # A comment-only fmt:off/on block ends with the `# fmt: on` comment
+        return True
+    if isinstance(next_node, Leaf) and next_node.type == STANDALONE_COMMENT:
+        return True
+    if _is_fmt_off_region_before_newline(hidden):
+        # The newline is already in the prefix of the next leaf
+        return False
+    # The newline ends a trailing comment, like `B,  # fmt: skip` in a class header:
+    # it was taken along with the comment from the prefix of `)`
+    return "\n" in next_node.prefix or "#" in str(hidden).rpartition("\n")[2]
+
+
 def _handle_regular_fmt_block(
     ignored_nodes: list[LN],
     comment: ProtoComment,
@@ -492,16 +536,7 @@ def _handle_regular_fmt_block(
     # This prevents multiple fmt: skip comments from being concatenated on one line
     def stringify_standalone_comment(node: Leaf, next_node: LN | None) -> str:
         node_str = str(node)
-        if not node_str.endswith("\n") and (
-            next_node is None
-            # A comment-only fmt:off/on block ends with the `# fmt: on` comment
-            or node.fmt_pass_converted_first_leaf is None
-            or (isinstance(next_node, Leaf) and next_node.type == STANDALONE_COMMENT)
-            or "\n" in next_node.prefix
-            # The newline ends a trailing comment, like `B,  # fmt: skip` in a class
-            # header: it was taken along with the comment from the prefix of `)`
-            or "#" in node_str.rpartition("\n")[2]
-        ):
+        if not node_str.endswith("\n") and _needs_newline_after(node, next_node):
             node_str += "\n"
         return node_str
 
@@ -526,6 +561,9 @@ def _handle_regular_fmt_block(
                     if isinstance(n, Leaf):
                         if n.type == STANDALONE_COMMENT:
                             result = n.prefix + n.value
+                            if _is_fmt_off_region_before_newline(n):
+                                # The newline is in the prefix of the next leaf
+                                return result
                             if (
                                 isinstance(next_node, Leaf)
                                 and next_node.type in CLOSING_BRACKETS
@@ -717,6 +755,7 @@ def generate_ignored_nodes(
         yield from _generate_ignored_nodes_from_fmt_skip(leaf, comment, mode)
         return
     container: LN | None = container_of(leaf)
+    open_brackets = 0
     while container is not None and container.type != token.ENDMARKER:
         if is_fmt_on(container, mode=mode):
             return
@@ -750,6 +789,15 @@ def generate_ignored_nodes(
                 # This can happen when there is no matching `# fmt: on` comment at the
                 # same level as `# fmt: on`. We need to keep this DEDENT.
                 return
+            if Preview.end_fmt_off_at_closing_bracket in mode:
+                if container.type in CLOSING_BRACKETS:
+                    if not open_brackets:
+                        # This closes the brackets that `# fmt: off` is in. Without a
+                        # `# fmt: on`, the region ends at the end of the brackets.
+                        return
+                    open_brackets -= 1
+                elif container.type in OPENING_BRACKETS:
+                    open_brackets += 1
             yield container
             container = container.next_sibling
 

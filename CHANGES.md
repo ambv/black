@@ -81,6 +81,8 @@
 - Fix IPython help syntax after an object (`obj?`), wildcard searches (`np.*load*?`) and
   pasted `>>>` prompts being rewritten in Jupyter notebooks. Cells with IPython syntax
   that can't be put back as written are now left unchanged (#5630)
+- Fix crash when `# fmt: skip` is on the closing bracket of a `# fmt: off` region that
+  ends in a comment (#5643)
 
 ### Preview style
 
@@ -113,6 +115,8 @@
 - Fix the unstable `string_processing` feature crashing on strings in lists, tuples and
   sets when the line length is very small or the code is deeply nested, by not wrapping
   them in parentheses when the wrapped line would still be too long (#5521)
+- Correctly indent `# fmt: off` comments inside brackets, such as function calls, and
+  fix a crash when one comes right before a lone name, number or string (#5643)
 
 ### Configuration
 

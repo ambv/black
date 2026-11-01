@@ -88,6 +88,9 @@ Currently, the following features are included in the preview style:
 - `remove_redundant_comparison_parentheses`: Remove redundant parentheses around
   operands in comparison expressions.
   ([see below](labels/remove-redundant-comparison-parentheses))
+- `end_fmt_off_at_closing_bracket`: Correctly indent `# fmt: off` comments inside
+  brackets, such as function calls, and fix a crash when one comes right before a lone
+  name, number or string.
 
 (labels/remove-redundant-top-level-parentheses)=
 
