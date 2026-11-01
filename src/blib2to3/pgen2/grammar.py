@@ -19,8 +19,7 @@ import tempfile
 from typing import Any, Optional, TypeVar, Union
 
 # Local imports
-from . import token
-from . import safe_pickle
+from . import safe_pickle, token
 
 _P = TypeVar("_P", bound="Grammar")
 Label = tuple[int, Optional[str]]
