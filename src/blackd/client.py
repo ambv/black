@@ -64,7 +64,10 @@ class BlackDClient:
             self.headers["X-Diff"] = "yes"
 
         if headers is not None:
-            self.headers.update(headers)
+            for name, value in headers.items():
+                if name.lower() == "content-type":
+                    name = "Content-Type"
+                self.headers[name] = value
 
     async def format_code(self, unformatted_code: str) -> str:
         async with aiohttp.ClientSession() as session:
