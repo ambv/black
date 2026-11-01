@@ -2724,6 +2724,8 @@ def maybe_make_parens_invisible_in_atom(
             not remove_brackets_around_comma
             and max_delimiter_priority_in_atom(node) >= COMMA_PRIORITY
             and not can_remove_generator_parens
+            # The comma is in a yielded tuple, which gets its own parentheses
+            and not (Preview.parenthesize_tuple_in_yield in mode and is_yield(node))
             # Remove parentheses around multiple exception types in except and
             # except* without as. See PEP 758 for details.
             and not (
