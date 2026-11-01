@@ -110,10 +110,8 @@
 - Fix the unstable `string_processing` feature crashing on strings in lists, tuples and
   sets when the line length is very small or the code is deeply nested, by not wrapping
   them in parentheses when the wrapped line would still be too long (#5521)
-- Fix crash when a `# fmt: off` without a matching `# fmt: on` comes right before a
-  single name, number or string inside brackets, such as `x = [` ... `# fmt: off` ...
-  `1` ... `]`. In that case and in type parameter lists, the region now ends at the
-  closing bracket instead of also leaving the code after it unformatted (#5643)
+- Correctly indent `# fmt: off` comments inside brackets, such as function calls, and
+  fix a crash when one comes right before a lone name, number or string (#5643)
 
 ### Configuration
 
