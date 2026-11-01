@@ -118,7 +118,7 @@
 - Correctly indent `# fmt: off` comments inside brackets, such as function calls, and
   fix a crash when one comes right before a lone name, number or string (#5643)
 - Remove redundant parentheses around a `yield` of a tuple, such as `(yield a, b)`
-  (#XXXX)
+  (#5646)
 
 ### Configuration
 
