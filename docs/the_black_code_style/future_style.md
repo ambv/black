@@ -51,6 +51,9 @@ Currently, the following features are included in the preview style:
   definition starts inside a `# fmt: off` block after an import.
 - `remove_redundant_generator_parentheses`: Remove redundant parentheses around
   generator expressions. ([see below](labels/remove-redundant-generator-parentheses))
+- `symmetric_collection_operations`: Keep optional parentheses around long binary
+  operations between collection displays when both operands fit on their own
+  delimiter-split line. ([see below](labels/symmetric-collection-operations))
 - `remove_redundant_unpacking_parentheses`: Remove redundant parentheses around
   individual variables in unpacking targets.
   ([see below](labels/remove-redundant-unpacking-parentheses))
@@ -72,6 +75,111 @@ Currently, the following features are included in the preview style:
 - `parenthesize_expressions_with_comments`: Parenthesize expressions (such as function
   calls) that exceed the line length when their parameters contain comments.
   ([see below](labels/parenthesize-expressions-with-comments))
+- `keep_trailers_on_bracket_comment_overflow`: Avoid splitting trailers (such as
+  indexing or subscripts) onto multiple lines when an earlier bracket split exceeds the
+  line length limit only due to a trailing comment.
+  ([see below](labels/keep-trailers-on-bracket-comment-overflow))
+- `remove_redundant_subscript_parentheses`: Remove redundant parentheses in subscripts
+  and indexing operators.
+- `remove_redundant_top_level_parentheses`: Remove redundant parentheses around simple
+  top-level expressions. ([see below](labels/remove-redundant-top-level-parentheses))
+- `remove_redundant_list_parentheses`: Remove redundant parentheses around list literals
+  and list comprehensions. ([see below](labels/remove-redundant-list-parentheses))
+- `remove_redundant_comparison_parentheses`: Remove redundant parentheses around
+  operands in comparison expressions.
+  ([see below](labels/remove-redundant-comparison-parentheses))
+
+(labels/remove-redundant-top-level-parentheses)=
+
+### Remove parentheses around simple top-level expressions
+
+Redundant outer parentheses are removed from simple top-level expression statements
+(such as `(x)`, `(1)`, `(yield 42)`, `([])`, `({})`, `(a + b)`):
+
+```python
+# Before
+(x)
+(1)
+(yield 42)
+([])
+({})
+(a + b)
+
+# After (with --preview)
+x
+1
+yield 42
+[]
+{}
+a + b
+```
+
+(labels/remove-redundant-list-parentheses)=
+
+### Redundant list parentheses
+
+Black removes extra parentheses around list literals and list comprehensions:
+
+```python
+# Before
+([])
+([1, 2])
+foo(([1, 2]))
+
+# After (with --preview)
+[]
+[1, 2]
+foo([1, 2])
+```
+
+(labels/remove-redundant-comparison-parentheses)=
+
+### Redundant comparison parentheses
+
+Black removes redundant parentheses around operands in comparison expressions:
+
+```python
+# Before
+assert name == ("CommonName")
+x = (1) < (2) <= (3)
+if (foo()) == (bar()):
+    pass
+
+# After (with --preview)
+assert name == "CommonName"
+x = 1 < 2 <= 3
+if foo() == bar():
+    pass
+```
+
+(labels/keep-trailers-on-bracket-comment-overflow)=
+
+### Keep trailers when earlier bracket split exceeds length due to comments
+
+When an expression containing trailers (such as indexing or subscripts like `[0]`) is
+split at an opening bracket, but the line ending with that opening bracket exceeds the
+maximum line length solely because of a trailing comment (such as `# type: ignore`),
+Black previously rejected omitting the trailers and pointlessly exploded them across
+multiple lines even though the earlier line could not be shortened. With this feature
+enabled, Black keeps those trailers intact:
+
+```python
+# Before
+_zzzzzzz(
+    zzz.get_data("key")[0].get_nested(  # type: ignore
+        "nested_key"
+    )[
+        0
+    ]
+)
+
+# After (with --preview)
+_zzzzzzz(
+    zzz.get_data("key")[0].get_nested(  # type: ignore
+        "nested_key"
+    )[0]
+)
+```
 
 (labels/parenthesize-expressions-with-comments)=
 
@@ -252,6 +360,33 @@ any additional pair:
 
 # After (with --preview)
 [(item for item in items), fallback]
+```
+
+(labels/symmetric-collection-operations)=
+
+### Symmetric display operations
+
+When a binary operation between two collection displays is too long for one line and
+both operands fit on their own delimiter-split line, Black keeps optional parentheses
+around the expression so that the operands can be split symmetrically. This applies to
+every arithmetic, bitwise, and symbolic comparison operator between collection displays.
+If either display needs an internal split, including when an active magic trailing comma
+forces it onto multiple lines, Black retains the existing formatting.
+
+```python
+# Before
+names = ["Alice", "Bob", "Charlie", "Diana", "Edward"] + [
+    "Fiona",
+    "George",
+    "Harriet",
+    "Isabelle",
+]
+
+# After (with --preview)
+names = (
+    ["Alice", "Bob", "Charlie", "Diana", "Edward"]
+    + ["Fiona", "George", "Harriet", "Isabelle"]
+)
 ```
 
 (labels/wrap-comprehension-in)=
@@ -704,7 +839,15 @@ foo(
 
 _Black_ will split long string literals and merge short ones. Parentheses are used where
 appropriate. When split, parts of f-strings that don't need formatting are converted to
-plain strings. f-strings will not be merged if they contain internal quotes and it would
-change their quotation mark style. Line continuation backslashes are converted into
-parenthesized strings. Unnecessary parentheses are stripped. The stability and status of
-this feature is tracked in [this issue](https://github.com/psf/black/issues/2188).
+plain strings. Short raw strings are merged only when their prefixes and quotation marks
+match and the resulting line fits within the line length limit. Their backslashes are
+preserved; raw f-strings are not merged, and raw groups whose estimated merged line
+exceeds the line length limit remain separate. f-strings will not be merged if they
+contain internal quotes and it would change their quotation mark style. Line
+continuation backslashes are converted into parenthesized strings. Unnecessary
+parentheses are stripped. The stability and status of this feature is tracked in
+[this issue](https://github.com/psf/black/issues/2188).
+
+Long strings on the right-hand side of binary and augmented assignment operators are
+also split, including operators overloaded by objects such as `pathlib.Path`. Middle
+operands of operator chains can also be wrapped and split.

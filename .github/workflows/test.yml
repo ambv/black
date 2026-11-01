@@ -16,7 +16,7 @@ on:
       - tests/**
       - tox.ini
       - pyproject.toml
-      - docs/integrations/source_version_control.md # Run on "Prepare Release" PRs
+      - docs/integrations/pre-commit.md # Run on "Prepare Release" PRs
 
 permissions:
   contents: read
@@ -50,7 +50,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
@@ -76,7 +76,7 @@ jobs:
           !startsWith(matrix.python-version, 'pypy')
         uses: AndreMiras/coveralls-python-action@ac868b9540fad490f7ca82b8ca00480fd751ed19
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ github.token }}
           parallel: true
           flag-name: py${{ matrix.python-version }}-${{ matrix.os }}
           debug: true
@@ -113,7 +113,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.15"
           allow-prereleases: true

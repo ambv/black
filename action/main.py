@@ -73,13 +73,25 @@ def read_version_specifier_from_pyproject() -> str:
     version = pyproject.get("tool", {}).get("black", {}).get("required-version")
     if version is not None:
         version = str(version).strip()
+        if not version:
+            return ""
         # If bare version number or major version is provided, format accordingly:
-        if version and version[0] in "0123456789":
+        if version[0] in "0123456789":
             if "." in version:
-                return f"=={version}"
+                version = f"=={version}"
             else:
-                return f"~={version}.0"
-        return version
+                version = f"~={version}.0"
+        # Accept only version specifiers, as for the dependency arrays below, so
+        # this can't turn into a direct reference that installs something else.
+        if m := BLACK_VERSION_RE.match(f"black{version}"):
+            return m.group(1).strip()
+        print(
+            "::error::Invalid 'required-version' in pyproject.toml: expected a"
+            " version or version specifier, for example '26.1.0' or '>=26,<27'.",
+            file=sys.stderr,
+            flush=True,
+        )
+        sys.exit(1)
 
     arrays = [
         *pyproject.get("dependency-groups", {}).values(),
@@ -128,7 +140,7 @@ def find_black_version_in_array(array: object) -> str | None:
     return None
 
 
-run([sys.executable, "-m", "venv", str(ENV_PATH)], check=True)
+run([sys.executable, "-m", "venv", str(ENV_PATH)], cwd=ACTION_PATH, check=True)
 
 version_specifier = determine_version_specifier()
 if JUPYTER:

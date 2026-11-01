@@ -1,14 +1,16 @@
-# Version control integration
+# Pre-commit integration
 
-Use [pre-commit](https://pre-commit.com/). Once you
-[have it installed](https://pre-commit.com/#install), add this to the
+Pre-commit can run Black as a hook before every commit, ensuring formatting is never
+forgotten.
+
+[Install pre-commit](https://pre-commit.com/#install) and add this to the
 `.pre-commit-config.yaml` in your repository:
 
 ```yaml
 repos:
   # Using this mirror lets us use mypyc-compiled black, which is about 2x faster
   - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 26.10.0
+    rev: 26.10.1
     hooks:
       - id: black
         # It is recommended to specify the latest version of Python
@@ -34,7 +36,7 @@ include Jupyter Notebooks. To use this hook, simply replace the hook's `id: blac
 ```yaml
 repos:
   - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 26.10.0
+    rev: 26.10.1
     hooks:
       - id: black-jupyter
         language_version: python3.11
@@ -64,7 +66,7 @@ Configure exclusions directly in `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 26.10.0
+    rev: 26.10.1
     hooks:
       - id: black
         exclude: ^migrations/|^generated/
@@ -89,13 +91,12 @@ force-exclude = '''
 '''
 ```
 
-Black automatically reads this configuration—no additional CLI arguments are needed in
-your `.pre-commit-config.yaml`.
+Both pre-commit and the Black CLI automatically read this configuration. No additional
+config is needed in `.pre-commit-config.yaml` or on the CLI.
 
 ```{note}
-The `force-exclude` option was added in version 20.8b0 specifically to support
-workflows where files are passed directly via CLI, such as pre-commit hooks and
-editor plugins.
+The `force-exclude` option was added in version 20.8b0 specifically to support workflows
+where files are passed directly via CLI, such as pre-commit hooks and editor plugins.
 ```
 
 [pre-commit-mutable-rev]:

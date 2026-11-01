@@ -10,16 +10,21 @@ from black.mode import Mode, Preview
 from black.nodes import (
     BRACKETS,
     CLOSING_BRACKETS,
+    COMPARATORS,
+    MATH_OPERATORS,
     OPENING_BRACKETS,
     STANDALONE_COMMENT,
     TEST_DESCENDANTS,
     child_towards,
     first_leaf,
     is_docstring,
+    is_generator,
     is_import,
     is_multiline_string,
+    is_one_element_subscript,
     is_one_sequence_between,
     is_one_tuple,
+    is_tuple,
     is_type_comment,
     is_type_ignore_comment,
     is_with_or_async_with_stmt,
@@ -94,13 +99,14 @@ class Line:
                 if self.has_magic_trailing_comma(leaf):
                     self.magic_trailing_comma = leaf
             elif self.has_magic_trailing_comma(leaf) and not (
-                # A one-element tuple's trailing comma is syntactically required,
-                # not magic, so it must never be removed. This is normally caught
-                # by has_magic_trailing_comma, but that check misses the tuple
-                # when its opening bracket was split onto an earlier line (for
-                # example by a standalone comment inside the tuple), so verify
-                # against the tree here before dropping the comma.
-                leaf.parent is not None and is_one_tuple(leaf.parent)
+                # The trailing comma of a one-element tuple or subscript is
+                # syntactically required, not magic, so it must never be removed.
+                # This is normally caught by has_magic_trailing_comma, but that
+                # check misses it when the opening bracket was split onto an
+                # earlier line (for example by a standalone comment inside the
+                # brackets), so verify against the tree here before dropping it.
+                leaf.parent is not None
+                and (is_one_tuple(leaf.parent) or is_one_element_subscript(leaf.parent))
             ):
                 self.remove_trailing_comma()
         if not self.append_comment(leaf):
@@ -205,18 +211,6 @@ class Line:
         )
 
     @property
-    def _is_triple_quoted_string(self) -> bool:
-        """Is the line a triple quoted string?"""
-        if not self or self.leaves[0].type != token.STRING:
-            return False
-        value = self.leaves[0].value
-        if value.startswith(('"""', "'''")):
-            return True
-        if value.startswith(("r'''", 'r"""', "R'''", 'R"""')):
-            return True
-        return False
-
-    @property
     def is_docstring(self) -> bool:
         """Is the line a docstring?"""
         return bool(self) and is_docstring(self.leaves[0])
@@ -271,6 +265,9 @@ class Line:
             leaf_list = list(leaf_group_iterator)
             if len(leaf_list) == 1:
                 continue
+            if leaf_list[-1] is self.leaves[-1] and any(self.comments.values()):
+                # Joining the line would print its comments after these strings.
+                return True
             for leaf in leaf_list:
                 if self.comments_after(leaf):
                     return True
@@ -524,9 +521,14 @@ class Line:
         first = next(leaves)
         res = f"{first.prefix}{indent}{first.value}"
         res += "".join(str(leaf) for leaf in leaves)
-        comments_iter = itertools.chain.from_iterable(self.comments.values())
-        comments = [str(comment) for comment in comments_iter]
-        res += "".join(comments)
+        comments = list(itertools.chain.from_iterable(self.comments.values()))
+        if len(comments) > 1:
+            # Python only recognizes a `# type: ignore` at the start of a comment, so
+            # it has to come first when comments from several lines end up on one.
+            comments.sort(
+                key=lambda comment: not is_type_ignore_comment(comment, mode=self.mode)
+            )
+        res += "".join(str(comment) for comment in comments)
 
         return res + "\n"
 
@@ -1028,11 +1030,20 @@ class EmptyLineTracker:
             # The blank lines that terminate a `# fmt: off` region live in the
             # prefix of the `# fmt: on` comment, not in the verbatim block, so
             # capping them here would edit formatting that was opted out of.
-            if not current_line.is_fmt_pass_converted() and not (
-                first_leaf.type == STANDALONE_COMMENT
-                and contains_fmt_directive(first_leaf.value, FMT_ON)
-                and self.previous_line is not None
-                and self.previous_line.is_fmt_pass_converted()
+            # Likewise for a comment kept from the prefix of a line outside
+            # --line-ranges.
+            if (
+                not current_line.is_fmt_pass_converted()
+                and not (
+                    first_leaf.type == STANDALONE_COMMENT
+                    and contains_fmt_directive(first_leaf.value, FMT_ON)
+                    and self.previous_line is not None
+                    and self.previous_line.is_fmt_pass_converted()
+                )
+                and not (
+                    current_line.is_comment
+                    and first_leaf.line_ranges_selected is not None
+                )
             ):
                 before = min(before, max_allowed)
             first_leaf.prefix = ""
@@ -1375,8 +1386,8 @@ def append_leaves(
     # formatting pass).
     search_start: dict[int, int] = {}
     for old_leaf in leaves:
-        new_leaf = Leaf(old_leaf.type, old_leaf.value)
-        new_leaf.lineno = old_leaf.lineno
+        new_leaf = old_leaf.clone()
+        new_leaf.prefix = ""
         parent = old_leaf.parent
         if parent is not None:
             children = parent.children
@@ -1555,6 +1566,84 @@ def _is_annotated_assignment(head: Line) -> bool:
     return False
 
 
+def is_symmetric_collection_binop(line: Line, line_length: int) -> bool:
+    """Is `line` a binary operation between single-line collection displays?"""
+    if len(line.bracket_tracker.delimiters) != 1:
+        return False
+
+    # Delimiters is keyed by leaf ID, not line position.
+    delimiter_id = next(iter(line.bracket_tracker.delimiters))
+    try:
+        left_closing_index = next(
+            index for index, leaf in enumerate(line.leaves) if id(leaf) == delimiter_id
+        )
+    except StopIteration:
+        return False
+
+    # Math operators are split *before* the delimiter, so BracketTracker keys
+    # them by the preceding leaf.
+    delimiter_index = left_closing_index + 1
+    if delimiter_index >= len(line.leaves) - 1:
+        return False
+
+    first = line.leaves[0]
+    left_closing = line.leaves[left_closing_index]
+    delimiter = line.leaves[delimiter_index]
+    right_opening = line.leaves[delimiter_index + 1]
+    last = line.leaves[-1]
+
+    collection_display = {
+        (token.LSQB, token.RSQB),
+        (token.LPAR, token.RPAR),
+        (token.LBRACE, token.RBRACE),
+    }
+
+    def is_collection_display(opening: Leaf, closing: Leaf) -> bool:
+        if (opening.type, closing.type) not in collection_display:
+            return False
+        return opening.type != token.LPAR or (
+            opening.parent is not None
+            and is_tuple(opening.parent)
+            and not is_generator(opening.parent)
+        )
+
+    if (
+        not is_collection_display(first, left_closing)
+        or not is_collection_display(right_opening, last)
+        or delimiter.type not in MATH_OPERATORS | COMPARATORS
+        or left_closing.opening_bracket is not first
+        or last.opening_bracket is not right_opening
+    ):
+        return False
+
+    # Keep the existing asymmetric split when either display is already forced
+    # to split by a magic trailing comma.
+    if line.mode.magic_trailing_comma and (
+        line.leaves[left_closing_index - 1].type == token.COMMA
+        or line.leaves[-2].type == token.COMMA
+    ):
+        return False
+
+    def rendered_width(start: int, end: int) -> int | None:
+        leaves = line.leaves[start:end]
+        rendered = "    " * line.depth
+        # End-of-line comments do not determine whether the operand itself fits.
+        for index, leaf in enumerate(leaves):
+            rendered += leaf.value if index == 0 else str(leaf)
+        if "\n" in rendered:
+            return None
+        return str_width(rendered)
+
+    left_width = rendered_width(0, delimiter_index)
+    right_width = rendered_width(delimiter_index, len(line.leaves))
+    return (
+        left_width is not None
+        and right_width is not None
+        and left_width <= line_length
+        and right_width <= line_length
+    )
+
+
 def can_omit_invisible_parens(
     rhs: RHSResult,
     line_length: int,
@@ -1688,6 +1777,13 @@ def can_omit_invisible_parens(
             # better. In this case, `rhs.body` is the context managers part of
             # the with statement. `rhs.head` is the `with (` part on the previous
             # line.
+            return False
+        if (
+            Preview.symmetric_collection_operations in mode
+            and is_symmetric_collection_binop(line, line_length)
+        ):
+            # Retaining the optional parentheses lets the delimiter splitter put
+            # each display operand on its own line instead of exploding just one.
             return False
         # Otherwise it may also read better, but we don't do it today and requires
         # careful considerations for all possible cases. See

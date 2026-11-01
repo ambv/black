@@ -73,6 +73,8 @@ formatted:
   ```python
   get_ipython().system('ls')
   ```
+- **IPython syntax that can't be put back as written** — e.g. help after an object
+  (`df.head?`), wildcard searches (`np.*load*?`) and pasted `>>>` prompts
 - **Invalid syntax** — as it cannot be safely distinguished from automagics without a
   running IPython kernel.
 
@@ -111,14 +113,14 @@ Simply replace the `black` hook with `black-jupyter`.
 ```yaml
 repos:
   - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 26.10.0
+    rev: 26.10.1
     hooks:
       - id: black-jupyter
         language_version: python3.11
 ```
 
-See the [source version control integration](../integrations/source_version_control.md)
-docs for more examples of using Black with pre-commit.
+See the [pre-commit integration](../integrations/pre-commit.md) docs for more examples
+of using Black with pre-commit.
 
 ### GitHub Actions
 
@@ -130,5 +132,5 @@ Set the `jupyter` option to `true`.
     jupyter: true
 ```
 
-See the [GitHub Actions integration](../integrations/source_version_control.md) docs for
-more examples of using Black with GitHub Actions.
+See the [GitHub Actions integration](../integrations/github_actions.md) docs for more
+examples of using Black with GitHub Actions.
