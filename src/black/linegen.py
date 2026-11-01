@@ -203,11 +203,6 @@ class LineGenerator(Visitor[Line]):
             and first.value in {"if", "else"}
             and not self.current_line.bracket_tracker.any_open_brackets()
         )
-        # A `# fmt: skip` on the last line of a multi-line expression, as in `a` ...
-        # `if c else d,  # fmt: skip`, hides only the code on that line, which ends
-        # this node. That code can include what follows the node on the same line,
-        # like the comma after an element of a collection, so a closing parenthesis
-        # added after it would end up after that comma.
         last = last_leaf(node)
         ends_with_fmt_skip = (
             last is not None
