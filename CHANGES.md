@@ -214,6 +214,9 @@ has been registered as `GHSA-cg8m-r9f2-5wm2`; a CVE identifier is pending.
   the first two lines of a file (#5487)
 - Fix adding an extra trailing blank line inside a multi-line module docstring when its
   last line is near the line length limit (#5494)
+- Preserve blank lines between imports and unselected statements when using
+  `--line-ranges`, and ensure a blank line is added between an unselected import and a
+  newly formatted statement (#5493)
 - Keep the parentheses around a walrus that is the only item in a set (for example
   `{(x := f())}`) when targeting Python 3.9 or older, since Python 3.8 and 3.9.0 can't
   parse it without them (#5502)
