@@ -1473,11 +1473,6 @@ def _format_str_once(
         src_contents.encode("utf-8"), mode, encoding_overwrite="utf-8"
     )
 
-    # Parse the source as-is: stripping leading whitespace would shift every
-    # line number in the tree, making parse errors and --line-ranges refer to
-    # the wrong lines when a file starts with blank lines. The parser handles
-    # leading whitespace fine, and lines.py drops blank lines before the first
-    # line anyway, so the output is unaffected.
     src_node = lib2to3_parse(normalized_contents, target_versions=mode.target_versions)
 
     dst_blocks: list[LinesBlock] = []
