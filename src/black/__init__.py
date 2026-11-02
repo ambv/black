@@ -44,6 +44,7 @@ from black.files import (
     find_user_pyproject_toml,
     gen_python_files,
     get_gitignore,
+    is_filesystem_root,
     parse_pyproject_toml,
     path_is_excluded,
     resolves_outside_root_or_cannot_stat,
@@ -595,7 +596,7 @@ def main(
     """The uncompromising code formatter."""
     ctx.ensure_object(dict)
 
-    assert sys.version_info >= (3, 10), "Black requires Python 3.10+"
+    assert sys.version_info >= (3, 11), "Black requires Python 3.11+"
     if sys.version_info[:3] == (3, 12, 5):
         out(
             "Python 3.12.5 has a memory safety issue that can cause Black's "
@@ -626,6 +627,15 @@ def main(
         find_project_root(src, stdin_filename) if code is None else (None, None)
     )
     ctx.obj["root"] = root
+
+    if code is None:
+        for source in src:
+            if source != "-" and is_filesystem_root(Path(source)):
+                err(
+                    "Warning: formatting the filesystem root can affect files "
+                    "outside your project."
+                )
+                break
 
     if (
         code is None
@@ -1463,9 +1473,7 @@ def _format_str_once(
         src_contents.encode("utf-8"), mode, encoding_overwrite="utf-8"
     )
 
-    src_node = lib2to3_parse(
-        normalized_contents.lstrip(), target_versions=mode.target_versions
-    )
+    src_node = lib2to3_parse(normalized_contents, target_versions=mode.target_versions)
 
     dst_blocks: list[LinesBlock] = []
     if mode.target_versions:
