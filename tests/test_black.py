@@ -239,6 +239,14 @@ def test_invalid_input_error_line_number_with_leading_blank_lines(
     )
 
 
+def test_form_feed_on_first_line_is_retained() -> None:
+    # The parse tree keeps line 1, so a standalone form feed there survives (#4021).
+    source = "\f\n\nprint ( 'a' )\n"
+    expected = '\f\nprint("a")\n'
+
+    assert_format(source, expected)
+
+
 class BlackTestCase(BlackBaseTestCase):
     invokeBlack = staticmethod(invokeBlack)
 
