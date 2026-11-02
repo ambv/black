@@ -1473,9 +1473,7 @@ def _format_str_once(
         src_contents.encode("utf-8"), mode, encoding_overwrite="utf-8"
     )
 
-    src_node = lib2to3_parse(
-        normalized_contents.lstrip(), target_versions=mode.target_versions
-    )
+    src_node = lib2to3_parse(normalized_contents, target_versions=mode.target_versions)
 
     dst_blocks: list[LinesBlock] = []
     if mode.target_versions:

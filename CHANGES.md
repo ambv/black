@@ -128,6 +128,9 @@
 
 <!-- Changes to how Black can be configured -->
 
+- Stop disregarding leading blank lines, which shifted the lines selected by
+  `--line-ranges`, reported the wrong line number in parse errors, and removed form
+  feeds on the first line (#5650)
 - Enable the cache when using `--diff` to skip unmodified files and record unmodified
   files as well-formatted (#5499)
 - Respect `--skip-source-first-line` when formatting code passed through stdin (#5580)

@@ -219,6 +219,34 @@ def test_invalid_input_error_includes_path_location(tmp_path: Path) -> None:
     assert f"error: cannot parse: {second_source}:1:6\n" in result.stderr
 
 
+def test_invalid_input_error_line_number_with_leading_blank_lines(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "leading_blank.py"
+    source.write_text("\n\n\ndef f(:\n    pass\n", encoding="utf8")
+
+    result = BlackRunner().invoke(
+        black.main, ["--config", str(THIS_DIR / "empty.toml"), str(source)]
+    )
+
+    assert result.exit_code == 123
+    assert (
+        f"error: cannot parse: {source}:4:6\n"
+        "    def f(:\n"
+        "         ^\n"
+        "ParseError: bad input\n"
+        in result.stderr
+    )
+
+
+def test_form_feed_on_first_line_is_retained() -> None:
+    # The parse tree keeps line 1, so a standalone form feed there survives (#4021).
+    source = "\f\n\nprint ( 'a' )\n"
+    expected = '\f\nprint("a")\n'
+
+    assert_format(source, expected)
+
+
 class BlackTestCase(BlackBaseTestCase):
     invokeBlack = staticmethod(invokeBlack)
 
@@ -2639,6 +2667,34 @@ class BlackTestCase(BlackBaseTestCase):
 
         assert (
             black.format_str(source, mode=black.FileMode(), lines=[(2, 2)]) == expected
+        )
+
+    def test_line_ranges_after_leading_blank_lines_target_the_right_lines(self) -> None:
+        # The parse tree must carry the file's real line numbers, so a range
+        # selects the same line it would select without the leading blank
+        # lines. It used to be off by the number of stripped leading lines,
+        # silently reformatting an unrelated line further down the file.
+        source = (
+            "\n\n\n"
+            'print ( "a" )\n'
+            'print ( "b" )\n'
+            'print ( "c" )\n'
+            'print ( "d" )\n'
+            'print ( "e" )\n'
+            'print ( "f" )\n'
+        )
+
+        expected = (
+            'print ( "a" )\n'
+            'print("b")\n'
+            'print ( "c" )\n'
+            'print ( "d" )\n'
+            'print ( "e" )\n'
+            'print ( "f" )\n'
+        )
+
+        assert (
+            black.format_str(source, mode=black.FileMode(), lines=[(5, 5)]) == expected
         )
 
     def test_line_ranges_fmt_off_prefix_comment_indentation_is_stable(self) -> None:
