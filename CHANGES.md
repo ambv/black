@@ -16,10 +16,6 @@
 
 <!-- Changes that affect Black's stable style -->
 
-- Fix `--line-ranges` selecting lines shifted by the number of leading blank lines,
-  silently reformatting an unrelated line or leaving the requested line unchanged. Parse
-  errors in files starting with blank lines now also report the correct line number, and
-  a standalone form feed on the first line is no longer removed (#5650)
 - Fix `# fmt: skip` on the last line of a multi-line conditional expression in a
   collection, like `a` ... `if c else d,  # fmt: skip`, producing invalid code (#5647)
 - Keep the optional parentheses around an assignment's right-hand side when removing
@@ -130,6 +126,9 @@
 
 <!-- Changes to how Black can be configured -->
 
+- Stop disregarding leading blank lines, which shifted the lines selected by
+  `--line-ranges`, reported the wrong line number in parse errors, and removed form
+  feeds on the first line (#5650)
 - Enable the cache when using `--diff` to skip unmodified files and record unmodified
   files as well-formatted (#5499)
 - Respect `--skip-source-first-line` when formatting code passed through stdin (#5580)
