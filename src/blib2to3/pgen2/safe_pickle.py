@@ -16,23 +16,21 @@ import io
 import pickle
 from typing import Any
 
-_SAFE_BUILTINS: frozenset[type] = frozenset(
-    {
-        dict,
-        list,
-        tuple,
-        set,
-        frozenset,
-        str,
-        bytes,
-        bytearray,
-        int,
-        float,
-        bool,
-        complex,
-        type(None),
-    }
-)
+_SAFE_BUILTINS: frozenset[type] = frozenset({
+    dict,
+    list,
+    tuple,
+    set,
+    frozenset,
+    str,
+    bytes,
+    bytearray,
+    int,
+    float,
+    bool,
+    complex,
+    type(None),
+})
 
 
 class RestrictedUnpickler(pickle.Unpickler):
