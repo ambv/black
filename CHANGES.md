@@ -85,6 +85,8 @@
   that can't be put back as written are now left unchanged (#5630)
 - Fix crash when `# fmt: skip` is on the closing bracket of a `# fmt: off` region that
   ends in a comment (#5643)
+- Fix crash when a `# fmt: off` inside brackets comes right before the trailing comma or
+  the rest of the last item (#5651)
 
 ### Preview style
 
