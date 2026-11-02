@@ -18,8 +18,8 @@
 
 - Fix `--line-ranges` selecting lines shifted by the number of leading blank lines,
   silently reformatting an unrelated line or leaving the requested line unchanged. Parse
-  errors in files starting with blank lines now also report the correct line number, and a
-  standalone form feed on the first line is no longer removed (#5650)
+  errors in files starting with blank lines now also report the correct line number, and
+  a standalone form feed on the first line is no longer removed (#5650)
 - Fix `# fmt: skip` on the last line of a multi-line conditional expression in a
   collection, like `a` ... `if c else d,  # fmt: skip`, producing invalid code (#5647)
 - Keep the optional parentheses around an assignment's right-hand side when removing
