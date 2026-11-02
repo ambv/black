@@ -87,6 +87,9 @@
   ends in a comment (#5643)
 - Fix crash when a `# fmt: off` inside brackets comes right before the trailing comma or
   the rest of the last item (#5651)
+- Fix a Jupyter notebook failing to format when one of its cells can't be tokenized,
+  such as a cell with an unclosed bracket or a shell command like
+  `!find . -exec rm {} \;`. These cells are now left unchanged (#5652)
 
 ### Preview style
 
