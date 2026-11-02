@@ -46,7 +46,8 @@ Currently, the following features are included in the preview style:
   left operand when the right operand is a bracketed expression that has to break
   anyway; let the bracket explode instead. ([see below](labels/hug-comparator))
 - `parenthesize_tuple_in_yield`: Add parentheses around tuple expressions in `yield`
-  statements.
+  statements, and remove redundant parentheses around such `yield` expressions.
+  ([see below](labels/parenthesize-tuple-in-yield))
 - `fmt_off_class_blank_lines`: Preserve two blank lines before a top-level class whose
   definition starts inside a `# fmt: off` block after an import.
 - `remove_redundant_generator_parentheses`: Remove redundant parentheses around
@@ -91,6 +92,9 @@ Currently, the following features are included in the preview style:
 - `remove_redundant_comparison_parentheses`: Remove redundant parentheses around
   operands in comparison expressions.
   ([see below](labels/remove-redundant-comparison-parentheses))
+- `end_fmt_off_at_closing_bracket`: Correctly indent `# fmt: off` comments inside
+  brackets, such as function calls, and fix a crash when one comes right before a lone
+  name, number or string.
 
 (labels/symmetric-binary-operations)=
 
@@ -771,6 +775,39 @@ assert (
         attr.fields(C).x.converter.__call__
     ).get_return_type()
 )
+```
+
+(labels/parenthesize-tuple-in-yield)=
+
+### Parentheses around tuples in `yield`
+
+Tuples in `yield` statements get parentheses the same way as in `return` statements:
+always for a one-element tuple, and when a longer tuple has to be split, so a split
+tuple no longer looks as if only its first element is yielded. Redundant parentheses
+around the `yield` itself are removed as well:
+
+```python
+# Before
+def f():
+    yield x,
+    x = (yield a, b)
+    (
+        yield long_variable_name_one,
+        long_variable_name_two,
+        long_variable_name_three,
+        long_variable_name_four,
+    )
+
+# After (with --preview)
+def f():
+    yield (x,)
+    x = yield a, b
+    yield (
+        long_variable_name_one,
+        long_variable_name_two,
+        long_variable_name_three,
+        long_variable_name_four,
+    )
 ```
 
 ## Unstable style

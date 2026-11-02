@@ -17,6 +17,7 @@ from black.brackets import (
     LOGIC_PRIORITY,
     STRING_PRIORITY,
     get_leaves_inside_matching_brackets,
+    max_delimiter_priority,
     max_delimiter_priority_in_atom,
 )
 from black.comments import (
@@ -77,6 +78,7 @@ from black.nodes import (
     is_vararg,
     is_walrus_assignment,
     is_yield,
+    last_leaf,
     syms,
     wrap_in_parentheses,
 )
@@ -202,8 +204,14 @@ class LineGenerator(Visitor[Line]):
             and first.value in {"if", "else"}
             and not self.current_line.bracket_tracker.any_open_brackets()
         )
+        last = last_leaf(node)
+        ends_with_fmt_skip = (
+            last is not None
+            and last.type == STANDALONE_COMMENT
+            and last.fmt_pass_converted_first_leaf is not None
+        )
 
-        if not already_parenthesized and not follows_fmt_skip:
+        if not (already_parenthesized or follows_fmt_skip or ends_with_fmt_skip):
             # Similar to logic in wrap_in_parentheses
             lpar = Leaf(token.LPAR, "")
             rpar = Leaf(token.RPAR, "")
@@ -802,9 +810,46 @@ class LineGenerator(Visitor[Line]):
                 node.children[1], mode=self.mode, features=self.features
             )
         if Preview.wrap_comprehension_in in self.mode:
-            normalize_invisible_parens(
-                node, parens_after={"in"}, mode=self.mode, features=self.features
-            )
+            for index, child in enumerate(node.children):
+                if (
+                    not isinstance(child.prev_sibling, Leaf)
+                    or not child.prev_sibling.value == "in"
+                ):
+                    continue
+
+                # Always try to remove all levels of parens
+                maybe_make_parens_invisible_in_atom(
+                    child, parent=node, mode=self.mode, features=self.features
+                )
+
+                # Don't force anything if comments are present
+                if any("#" in leaf.prefix for leaf in child.leaves()):
+                    continue
+
+                unwrapped = False
+                while (
+                    len(child.children) == 3
+                    and is_lpar_token(child.children[0])
+                    and is_rpar_token(child.children[-1])
+                ):
+                    unwrapped = True
+                    child = child.children[1]
+
+                max_delimiter = max_delimiter_priority(child.children)
+
+                # Keep 1 level of invisible parens so it can be wrapped if too long
+                wrap_in_parentheses(
+                    node,
+                    child,
+                    visible=(
+                        # Keep one level to avoid syntax errors
+                        child.type in {syms.test, syms.lambdef, syms.yield_expr}
+                        # Keep as-written if it's a non-simple name (has delimiters)
+                        or (unwrapped and max_delimiter > DOT_PRIORITY)
+                    ),
+                    index=index,
+                )
+
         yield from self.visit_default(node)
 
     def visit_old_comp_for(self, node: Node) -> Iterator[Line]:
@@ -1430,6 +1475,23 @@ def _prefer_split_rhs_oop_over_rhs(
         # Unless the split is inside the key
         return any(leaf.type == token.COLON for leaf in rhs_oop.tail.leaves)
 
+    # Keep the optional parens when omitting them would make the assignment head
+    # overlong even though keeping them fits. If the omitted-paren head contains a
+    # closing bracket, the split machinery can still try an earlier split point;
+    # if it contains comments, the overflow is not caused by the code alone. Leave
+    # both cases to the existing heuristics. Standalone comments in the body force
+    # it onto separate lines, so the head cannot be shortened afterwards (#3925).
+    if (
+        len(rhs.head.leaves) >= 2
+        and rhs.head.leaves[-2].type == token.EQUAL
+        and rhs_oop.body.contains_standalone_comments()
+        and not rhs_oop.head.comments
+        and is_line_short_enough(rhs.head, mode=mode)
+        and not is_line_short_enough(rhs_oop.head, mode=mode)
+        and not any(leaf.type in CLOSING_BRACKETS for leaf in rhs_oop.head.leaves)
+    ):
+        return False
+
     # the split is right after `=`
     if not (len(rhs.head.leaves) >= 2 and rhs.head.leaves[-2].type == token.EQUAL):
         return True
@@ -2017,7 +2079,25 @@ def _continues_fmt_skip_line(line: Line, leaf: Leaf) -> bool:
         and _is_hidden_by_fmt_skip(leaf)
         and not leaf.value.startswith("#")
         and "\n" not in leaf.prefix
+        and not _starts_statement(leaf)
     )
+
+
+def _starts_statement(leaf: Leaf) -> bool:
+    """Is `leaf` the first leaf of a statement?
+
+    The newline before a statement isn't in its prefix. It can even be hidden with
+    the statement above, e.g. `foo(a  # fmt: skip` ... `)` followed by another one.
+    """
+    node: LN = leaf
+    while node.parent is not None and node.parent.type not in {
+        syms.file_input,
+        syms.suite,
+    }:
+        if node.prev_sibling is not None:
+            return False
+        node = node.parent
+    return node.parent is not None
 
 
 def _is_hidden_by_fmt_skip(leaf: Leaf) -> bool:
@@ -2679,6 +2759,8 @@ def maybe_make_parens_invisible_in_atom(
             not remove_brackets_around_comma
             and max_delimiter_priority_in_atom(node) >= COMMA_PRIORITY
             and not can_remove_generator_parens
+            # The comma is in a yielded tuple, which gets its own parentheses
+            and not (Preview.parenthesize_tuple_in_yield in mode and is_yield(node))
             # Remove parentheses around multiple exception types in except and
             # except* without as. See PEP 758 for details.
             and not (
