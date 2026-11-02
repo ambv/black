@@ -1634,10 +1634,11 @@ def bracket_split_build_line(
         result.depth += 1
         if _ensure_trailing_comma(leaves, original, opening_bracket):
             for i in range(len(leaves) - 1, -1, -1):
-                if leaves[i].type == STANDALONE_COMMENT:
+                if _is_comment(leaves[i]):
                     continue
 
-                if leaves[i].type != token.COMMA:
+                # Hidden code may already end in a comma, so none is added after it
+                if leaves[i].type not in {token.COMMA, STANDALONE_COMMENT}:
                     new_comma = Leaf(token.COMMA, ",")
                     leaves.insert(i + 1, new_comma)
                 break
@@ -1678,9 +1679,22 @@ def dont_increase_indentation(split_func: Transformer) -> Transformer:
     return split_wrapper
 
 
+def _is_comment(leaf: Leaf) -> bool:
+    """Is `leaf` a standalone comment?
+
+    A STANDALONE_COMMENT can also hold code hidden by `# fmt: off`, `# fmt: skip` or
+    `--line-ranges`. Right after the last item in brackets, that code is the rest of
+    the item or its trailing comma, as in `b` ... `# fmt: off` ... `,`, so a trailing
+    comma can't go before it.
+    """
+    return (
+        leaf.type == STANDALONE_COMMENT and leaf.fmt_pass_converted_first_leaf is None
+    )
+
+
 def _get_last_non_comment_leaf(line: Line) -> int | None:
     for leaf_idx in range(len(line.leaves) - 1, 0, -1):
-        if line.leaves[leaf_idx].type != STANDALONE_COMMENT:
+        if not _is_comment(line.leaves[leaf_idx]):
             return leaf_idx
     return None
 
