@@ -87,6 +87,8 @@
   ends in a comment (#5643)
 - Fix crash when a `# fmt: off` inside brackets comes right before the trailing comma or
   the rest of the last item (#5651)
+- Fix crash on an indented `# fmt: off` in the expression of an f-string field with `=`
+  or of a t-string field (#5653)
 
 ### Preview style
 
