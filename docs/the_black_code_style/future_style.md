@@ -93,8 +93,8 @@ Currently, the following features are included in the preview style:
   brackets, such as function calls, and fix a crash when one comes right before a lone
   name, number or string.
 - `move_pragma_comments_to_open_bracket`: Move pragma comments (such as `# pylint:`,
-  `# noqa`, `# pyright:`, `# ruff:`) from trailing closing brackets to the opening bracket when
-  wrapping statements across lines.
+  `# noqa`, `# pyright:`, `# ruff:`) from trailing closing brackets to the opening
+  bracket when wrapping statements across lines.
   ([see below](labels/move-pragma-comments-to-open-bracket))
 
 (labels/remove-redundant-top-level-parentheses)=
