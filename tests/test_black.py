@@ -3199,7 +3199,7 @@ class TestCaching:
             cache_file = get_cache_file(mode, workspace)
 
             class Evil:
-                def __reduce__(self):
+                def __reduce__(self) -> tuple[Callable[[], None], tuple[()]]:
                     return (marker.touch, ())
 
             with cache_file.open("wb") as fobj:
