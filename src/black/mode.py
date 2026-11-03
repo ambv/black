@@ -287,6 +287,7 @@ class Preview(Enum):
     remove_redundant_comparison_parentheses = auto()
     remove_redundant_top_level_parentheses = auto()
     end_fmt_off_at_closing_bracket = auto()
+    move_pragma_comments_to_open_bracket = auto()
 
 
 UNSTABLE_FEATURES: set[Preview] = {

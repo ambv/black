@@ -92,6 +92,10 @@ Currently, the following features are included in the preview style:
 - `end_fmt_off_at_closing_bracket`: Correctly indent `# fmt: off` comments inside
   brackets, such as function calls, and fix a crash when one comes right before a lone
   name, number or string.
+- `move_pragma_comments_to_open_bracket`: Move pragma comments (such as `# pylint:`,
+  `# noqa`, `# pyright:`, `# ruff:`) from trailing closing brackets to the opening bracket when
+  wrapping statements across lines.
+  ([see below](labels/move-pragma-comments-to-open-bracket))
 
 (labels/remove-redundant-top-level-parentheses)=
 
@@ -867,6 +871,28 @@ foo(
         2,
         3,
     ],
+)
+```
+
+(labels/move-pragma-comments-to-open-bracket)=
+
+### Move pragma comments to opening bracket
+
+When wrapping a statement or function call across multiple lines, pragma comments (such
+as `# pylint:`, `# noqa`, `# type:`, `# pyright:`, `# ruff:`, and `# pragma:`) that
+trailed the original line are moved to the opening bracket line instead of remaining on
+the closing bracket line, ensuring static analysis tools properly associate the pragma
+with the statement:
+
+```python
+# Before
+asdf = namedtuple(
+    "nameoftuplegoeshere", "fieldsgohere andnoather andanother morehere"
+)  # pylint: disable=invalid-name
+
+# After (with --preview)
+asdf = namedtuple(  # pylint: disable=invalid-name
+    "nameoftuplegoeshere", "fieldsgohere andnoather andanother morehere"
 )
 ```
 

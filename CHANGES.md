@@ -94,6 +94,9 @@
 
 - Retain user-written parens around `in` clauses of comprehensions if they have
   delimiters (#4881)
+- Move pragma comments (such as `# pylint:`, `# noqa`, `# pyright:`, `# ruff:`) from
+  trailing closing brackets to the opening bracket when wrapping statements across lines
+  (#5655)
 - Fix crash when `# fmt: skip` is on the opening bracket of a collection used as a
   binary operand and the expression is split at a short line length (#5609)
 - Remove redundant parentheses around simple top-level expressions (#5516)
