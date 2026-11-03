@@ -18,9 +18,6 @@
 
 - Fix `# fmt: skip` on the last line of a multi-line conditional expression in a
   collection, like `a` ... `if c else d,  # fmt: skip`, producing invalid code (#5647)
-- Keep the optional parentheses around an assignment's right-hand side when removing
-  them would produce a first line longer than the line length and the expression
-  contains standalone comments (#5638)
 - Preserve trailing blank lines at EOF in unclosed `# fmt: off` blocks (#5634)
 - Fix crash when `# fmt: skip` follows the closing bracket of a multi-line call or
   subscript that isn't the last element of a collection or argument list (#5522)
@@ -92,6 +89,9 @@
 
 <!-- Changes that affect Black's preview style -->
 
+- Keep the optional parentheses around an assignment's right-hand side when removing
+  them would produce a first line longer than the line length and the expression
+  contains standalone comments (#5638, #5657)
 - Retain user-written parens around `in` clauses of comprehensions if they have
   delimiters (#4881)
 - Fix crash when `# fmt: skip` is on the opening bracket of a collection used as a
