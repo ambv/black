@@ -273,6 +273,16 @@ class LineGenerator(Visitor[Line]):
 
             yield from self.visit(child)
 
+    def visit_lambdef(self, node: Node) -> Iterator[Line]:
+        if (
+            Preview.wrap_long_lambda_assignments in self.mode
+            and _is_assigned_lambda_call(node)
+        ):
+            normalize_invisible_parens(
+                node, parens_after={":"}, mode=self.mode, features=self.features
+            )
+        yield from self.visit_default(node)
+
     def visit_dictsetmaker(self, node: Node) -> Iterator[Line]:
         if Preview.wrap_long_dict_values_in_parens in self.mode:
             for i, child in enumerate(node.children):
@@ -1479,6 +1489,19 @@ def _prefer_split_rhs_oop_over_rhs(
         # Unless the split is inside the key
         return any(leaf.type == token.COLON for leaf in rhs_oop.tail.leaves)
 
+    if (
+        Preview.wrap_long_lambda_assignments in mode
+        and (atom := rhs.opening_bracket.parent) is not None
+        and _is_parenthesized_atom(atom)
+        and (
+            _is_assigned_lambda_call(atom.children[1])
+            or (atom.parent is not None and _is_assigned_lambda_call(atom.parent))
+        )
+        and is_line_short_enough(rhs.head, mode=mode)
+        and not is_line_short_enough(rhs_oop.head, mode=mode)
+    ):
+        return False
+
     # the split is right after `=`
     if not (len(rhs.head.leaves) >= 2 and rhs.head.leaves[-2].type == token.EQUAL):
         # Unless omitting them would make the assignment head overlong
@@ -2356,6 +2379,30 @@ def _is_parenthesized_atom(node: LN) -> bool:
         and len(node.children) == 3
         and is_lpar_token(node.children[0])
         and is_rpar_token(node.children[-1])
+    )
+
+
+def _is_assigned_lambda_call(node: LN) -> bool:
+    """Whether an assignment's lambda has a call as its body."""
+    atom = node.parent
+    if not (
+        node.type == syms.lambdef
+        and atom is not None
+        and _is_parenthesized_atom(atom)
+        and atom.parent is not None
+        and atom.parent.type in {syms.expr_stmt, syms.annassign}
+        and atom.prev_sibling is not None
+        and atom.prev_sibling.type == token.EQUAL
+    ):
+        return False
+
+    body = node.children[-1]
+    while _is_parenthesized_atom(body):
+        body = body.children[1]
+    return (
+        body.type == syms.power
+        and body.children[-1].type == syms.trailer
+        and body.children[-1].children[0].type == token.LPAR
     )
 
 
