@@ -1298,20 +1298,24 @@ def format_cell(src: str, *, fast: bool, mode: Mode) -> str:
     are currently not supported.
     """
     validate_cell(src, mode)
-    src_without_trailing_semicolon, has_trailing_semicolon = remove_trailing_semicolon(
-        src
-    )
     try:
+        src_without_trailing_semicolon, has_trailing_semicolon = (
+            remove_trailing_semicolon(src)
+        )
         masked_src, replacements = mask_cell(src_without_trailing_semicolon)
-    except SyntaxError:
+    except (SyntaxError, tokenize.TokenError):
         raise NothingChanged from None
     masked_dst = format_str(masked_src, mode=mode)
     if not fast:
         check_stability_and_equivalence(masked_src, masked_dst, mode=mode)
     dst_without_trailing_semicolon = unmask_cell(masked_dst, replacements)
-    dst = put_trailing_semicolon_back(
-        dst_without_trailing_semicolon, has_trailing_semicolon
-    )
+    try:
+        dst = put_trailing_semicolon_back(
+            dst_without_trailing_semicolon, has_trailing_semicolon
+        )
+    except tokenize.TokenError:
+        # Python 3.11 sees the `;` in `!find . -exec rm {} \;` as a trailing semicolon
+        raise NothingChanged from None
     dst = dst.rstrip("\n")
     if dst == src:
         raise NothingChanged from None
@@ -1473,9 +1477,7 @@ def _format_str_once(
         src_contents.encode("utf-8"), mode, encoding_overwrite="utf-8"
     )
 
-    src_node = lib2to3_parse(
-        normalized_contents.lstrip(), target_versions=mode.target_versions
-    )
+    src_node = lib2to3_parse(normalized_contents, target_versions=mode.target_versions)
 
     dst_blocks: list[LinesBlock] = []
     if mode.target_versions:
