@@ -1088,6 +1088,52 @@ class _BracketSplitComponent(Enum):
     tail = auto()
 
 
+PRAGMA_COMMENT_PREFIXES: Final = (
+    "# noqa",
+    "# pylint:",
+    "# pyright:",
+    "# ruff:",
+    "# pragma:",
+)
+
+
+def _maybe_move_pragma_comments(
+    head: Line, tail: Line, opening_bracket: Leaf, mode: Mode
+) -> None:
+    """Move pragma comments from tail to head if tail has only closing brackets."""
+    if Preview.move_pragma_comments_to_open_bracket not in mode:
+        return
+    if not (head.leaves and tail.leaves and tail.comments):
+        return
+    if not all(
+        leaf.type in CLOSING_BRACKETS or leaf.type in (token.COMMA, token.COLON)
+        for leaf in tail.leaves
+    ):
+        return
+
+    pragmas_to_move: list[Leaf] = []
+    for leaf_id, comments in list(tail.comments.items()):
+        remaining = []
+        for c in comments:
+            if c.value.startswith(PRAGMA_COMMENT_PREFIXES):
+                pragmas_to_move.append(c)
+            else:
+                remaining.append(c)
+        if remaining:
+            tail.comments[leaf_id] = remaining
+        else:
+            del tail.comments[leaf_id]
+
+    if pragmas_to_move:
+        target_leaf = (
+            opening_bracket if opening_bracket in head.leaves else head.leaves[-1]
+        )
+        for c in pragmas_to_move:
+            if len(c.prefix) < 2:
+                c.prefix = "  "
+        head.comments.setdefault(id(target_leaf), []).extend(pragmas_to_move)
+
+
 def left_hand_split(
     line: Line, _features: Collection[Feature], mode: Mode
 ) -> Iterator[Line]:
@@ -1149,6 +1195,7 @@ def left_hand_split(
         tail_leaves, line, matching_bracket, component=_BracketSplitComponent.tail
     )
     bracket_split_succeeded_or_raise(head, body, tail)
+    _maybe_move_pragma_comments(head, tail, matching_bracket, mode=mode)
     for result in (head, body, tail):
         if result:
             yield result
@@ -1448,6 +1495,7 @@ def _maybe_split_omitting_optional_parens(
     ensure_visible(rhs.closing_bracket)
     if split_symmetric_collection_binops:
         rhs.body.should_split_rhs = True
+    _maybe_move_pragma_comments(rhs.head, rhs.tail, rhs.opening_bracket, mode=mode)
     for result in (rhs.head, rhs.body, rhs.tail):
         if result:
             yield result
