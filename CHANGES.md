@@ -95,7 +95,7 @@
 - The `keep_commented_expressions_together` preview feature now keeps an expression
   together wherever a standalone comment sits inside the surrounding brackets, not
   just when the comment precedes the expression; a comment after a comparison in
-  parentheses no longer fragments it across lines (#638)
+  parentheses no longer fragments it across lines (#5660)
 - Keep the optional parentheses around an assignment's right-hand side when removing
   them would produce a first line longer than the line length and the expression
   contains standalone comments (#5638, #5657)
