@@ -403,6 +403,9 @@ has been registered as `GHSA-cg8m-r9f2-5wm2`; a CVE identifier is pending.
   of crashing (#5211)
 - Ignore permission errors when reading cache (#5258)
 
+- Reject non-positive `--line-length` values on the command line and in
+  `pyproject.toml` instead of silently formatting with them (#PR)
+
 ### Packaging
 
 - Reduce the size of Linux standalone binaries by stripping debug symbols during the
