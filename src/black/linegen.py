@@ -1502,10 +1502,16 @@ def _prefer_split_rhs_oop_over_rhs(
     if (
         Preview.wrap_long_lambda_assignments in mode
         and (atom := rhs.opening_bracket.parent) is not None
-        and _is_parenthesized_atom(atom)
         and (
-            _is_assigned_lambda_call(atom.children[1])
-            or (atom.parent is not None and _is_assigned_lambda_call(atom.parent))
+            (
+                (wrapped := rhs.opening_bracket.next_sibling) is not None
+                and _is_assigned_lambda_call(wrapped)
+            )
+            or (
+                atom.parent is not None
+                and _is_assigned_lambda_call(atom.parent)
+                and _is_parenthesized_atom(atom)
+            )
         )
         and is_line_short_enough(rhs.head, mode=mode)
         and not is_line_short_enough(rhs_oop.head, mode=mode)
@@ -2400,6 +2406,8 @@ def _is_parenthesized_atom(node: LN) -> bool:
 def _is_assigned_lambda_call(node: LN) -> bool:
     """Whether an assignment's lambda ends in a call we can split."""
     atom = node.parent
+    # Match the assignment's RHS immediately after `=`. Annotated assignments
+    # put that RHS inside a distinct parse-tree node.
     if not (
         node.type == syms.lambdef
         and atom is not None
