@@ -146,8 +146,8 @@
 - Treat an unreadable cache file as a cache miss instead of failing the formatting run
   with a "cannot format" error (#5641)
 
-- Reject non-positive `--line-length` values on the command line and in
-  `pyproject.toml` instead of silently formatting with them (#PR)
+- Reject non-positive `--line-length` values on the command line and in `pyproject.toml`
+  instead of silently formatting with them (#PR)
 
 ### Packaging
 
