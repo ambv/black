@@ -146,6 +146,9 @@
 - Treat an unreadable cache file as a cache miss instead of failing the formatting run
   with a "cannot format" error (#5641)
 
+- Reject non-positive `--line-length` values on the command line and in
+  `pyproject.toml` instead of silently formatting with them (#PR)
+
 ### Packaging
 
 <!-- Changes to how Black is packaged, such as dependency requirements -->
@@ -402,9 +405,6 @@ has been registered as `GHSA-cg8m-r9f2-5wm2`; a CVE identifier is pending.
 - Validate `BLACK_NUM_WORKERS` values and report invalid values as usage errors instead
   of crashing (#5211)
 - Ignore permission errors when reading cache (#5258)
-
-- Reject non-positive `--line-length` values on the command line and in
-  `pyproject.toml` instead of silently formatting with them (#PR)
 
 ### Packaging
 
