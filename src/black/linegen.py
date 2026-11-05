@@ -277,6 +277,16 @@ class LineGenerator(Visitor[Line]):
         if (
             Preview.wrap_long_lambda_assignments in self.mode
             and _is_assigned_lambda_call(node)
+            # The ignore belongs to its original physical line, which could
+            # move away from the assignment when the lambda body is wrapped.
+            and not any(
+                is_type_ignore_comment_string(comment.value, self.mode)
+                for leaf in node.leaves()
+                if "#" in leaf.prefix
+                for comment in list_comments(
+                    leaf.prefix, is_endmarker=False, mode=self.mode
+                )
+            )
         ):
             normalize_invisible_parens(
                 node, parens_after={":"}, mode=self.mode, features=self.features
@@ -1499,6 +1509,11 @@ def _prefer_split_rhs_oop_over_rhs(
         )
         and is_line_short_enough(rhs.head, mode=mode)
         and not is_line_short_enough(rhs_oop.head, mode=mode)
+        and not any(
+            is_type_ignore_comment(comment, mode)
+            for comments in rhs_oop.head.comments.values()
+            for comment in comments
+        )
     ):
         return False
 
@@ -2383,7 +2398,7 @@ def _is_parenthesized_atom(node: LN) -> bool:
 
 
 def _is_assigned_lambda_call(node: LN) -> bool:
-    """Whether an assignment's lambda has a call as its body."""
+    """Whether an assignment's lambda ends in a call we can split."""
     atom = node.parent
     if not (
         node.type == syms.lambdef
@@ -2402,6 +2417,7 @@ def _is_assigned_lambda_call(node: LN) -> bool:
     return (
         body.type == syms.power
         and body.children[-1].type == syms.trailer
+        and len(body.children[-1].children) > 2
         and body.children[-1].children[0].type == token.LPAR
     )
 
