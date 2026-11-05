@@ -1,4 +1,4 @@
-(#5664)# Change Log
+# Change Log
 
 ## Unreleased
 
@@ -147,7 +147,7 @@
   with a "cannot format" error (#5641)
 
 - Reject non-positive `--line-length` values on the command line and in `pyproject.toml`
-  instead of silently formatting with them (#PR)
+  instead of silently formatting with them (#5664)
 
 ### Packaging
 
