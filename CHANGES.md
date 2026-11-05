@@ -131,7 +131,7 @@
 - Stop disregarding leading blank lines, which shifted the lines selected by
   `--line-ranges`, reported the wrong line number in parse errors, and removed form
   feeds on the first line (#5650)
-- Walk directories that `.gitignore` ignores when negation patterns are present, so
+- Re-include directories that a later `.gitignore` pattern like `!*/` un-ignores, so
   patterns like `*` / `!*/` / `!*.py` include nested Python files like git (#5537)
 - Enable the cache when using `--diff` to skip unmodified files and record unmodified
   files as well-formatted (#5499)

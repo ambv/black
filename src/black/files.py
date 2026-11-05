@@ -336,23 +336,25 @@ def _path_is_ignored(
                 relative_path = relative_path + "/"
         except ValueError:
             break
-        if pattern.match_file(relative_path):
+        if path.is_dir():
+            if _dir_is_ignored(pattern, relative_path):
+                return True
+        elif pattern.match_file(relative_path):
             return True
     return False
 
 
-def _gitignore_has_negation(gitignore_dict: dict[Path, GitIgnoreSpec]) -> bool:
-    """True if any .gitignore pattern is a negation (`!…`).
+def _dir_is_ignored(spec: GitIgnoreSpec, relative_path: str) -> bool:
+    """Like git, the last pattern matching the directory itself wins.
 
-    Git may ignore a directory (e.g. via `*`) while later un-ignoring it or files
-    under it (`!*/`, `!*.py`). In that case we must still walk the directory.
+    GitIgnoreSpec.match_file lets `*` beat a later `!*/` on "dir/", so a
+    re-included directory would never be walked (#3694).
     """
-    for spec in gitignore_dict.values():
-        for pattern in spec.patterns:
-            # pathspec: include is False for negation patterns, True for ignores
-            if getattr(pattern, "include", True) is False:
-                return True
-    return False
+    ignored = False
+    for pattern in spec.patterns:
+        if pattern.include is not None and pattern.match_file(relative_path):
+            ignored = pattern.include
+    return ignored
 
 
 def path_is_excluded(
@@ -390,15 +392,12 @@ def gen_python_files(
         assert child.is_absolute()
         root_relative_path = child.relative_to(root).as_posix()
 
-        # First ignore files matching .gitignore, if passed.
-        # Directories still get walked when a negation pattern exists, so git-style
-        # un-ignores like `*` / `!*/` / `!*.py` can see nested files (see #3694).
+        # First ignore files matching .gitignore, if passed
         if gitignore_dict and _path_is_ignored(
             root_relative_path, root, gitignore_dict
         ):
-            if not (child.is_dir() and _gitignore_has_negation(gitignore_dict)):
-                report.path_ignored(child, "matches a .gitignore file content")
-                continue
+            report.path_ignored(child, "matches a .gitignore file content")
+            continue
 
         # Then ignore with `--exclude` `--extend-exclude` and `--force-exclude` options.
         root_relative_path = "/" + root_relative_path
