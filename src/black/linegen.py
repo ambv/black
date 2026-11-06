@@ -4,7 +4,7 @@ Generating lines of code.
 
 import re
 import sys
-from collections.abc import Collection, Iterable, Iterator
+from collections.abc import Collection, Iterable, Iterator, Sequence
 from dataclasses import replace
 from enum import Enum, auto
 from functools import partial, wraps
@@ -17,6 +17,7 @@ from black.brackets import (
     LOGIC_PRIORITY,
     STRING_PRIORITY,
     get_leaves_inside_matching_brackets,
+    is_split_before_delimiter,
     max_delimiter_priority,
     max_delimiter_priority_in_atom,
 )
@@ -724,6 +725,24 @@ class LineGenerator(Visitor[Line]):
                     features=self.features,
                 )
 
+        yield from self.visit_default(node)
+
+    def visit_argument(self, node: Node) -> Iterator[Line]:
+        """Gain a split point for a ``name=value`` argument that overflows."""
+        if not any(child.type == token.EQUAL for child in node.children):
+            yield from self.visit_default(node)
+            return
+
+        value = node.children[-1]
+        name = node.children[0]
+        if (
+            Preview.parenthesize_unsplittable_keyword_arguments in self.mode
+            and isinstance(name, Leaf)
+            and _kwarg_value_wants_parentheses(name, value, self.mode)
+        ):
+            normalize_invisible_parens(
+                node, parens_after={"="}, mode=self.mode, features=self.features
+            )
         yield from self.visit_default(node)
 
     def visit_fstring(self, node: Node) -> Iterator[Line]:
@@ -2357,6 +2376,56 @@ def _is_parenthesized_atom(node: LN) -> bool:
         and is_lpar_token(node.children[0])
         and is_rpar_token(node.children[-1])
     )
+
+
+def _kwarg_value_wants_parentheses(name: Leaf, value: LN, mode: Mode) -> bool:
+    """Should the value of a ``name=value`` argument get invisible parentheses?"""
+    line_length = mode.line_length
+    leaves = list(value.leaves())
+    # A call, subscript, or collection literal already offers right_hand_split a
+    # split point inside its own brackets; the broader question there is #5335.
+    if any(leaf.type in BRACKETS for leaf in leaves):
+        return False
+    # Wrap simply when the argument is over line length unwrapped and fits
+    # wrapped: the head line holds ``name=(`` and the value lands on indented
+    # lines, split at its delimiters.
+    if 4 + len(name.value) + 1 + _minimal_render_length(leaves) <= line_length:
+        return False
+    if 4 + len(name.value) + 2 > line_length:
+        return False
+    parts: list[list[Leaf]] = []
+    part: list[Leaf] = []
+    previous: Leaf | None = None
+    for leaf in leaves:
+        # A string seam is Black's own implicit-concatenation split point;
+        # this feature never splits or merges strings, so a string value can
+        # only be wrapped when it fits as a unit across the seam.
+        if (
+            part
+            and not (leaf.type == token.STRING and previous.type == token.STRING)
+            and is_split_before_delimiter(leaf, previous)
+        ):
+            parts.append(part)
+            part = []
+        part.append(leaf)
+        previous = leaf
+    parts.append(part)
+    return all(8 + _minimal_render_length(part) <= line_length for part in parts)
+
+
+def _minimal_render_length(leaves: Sequence[Leaf]) -> int:
+    """The length ``leaves`` take when rendered on one line."""
+    total = 0
+    for i, leaf in enumerate(leaves):
+        total += len(leaf.value)
+        if i and _is_wordish(leaves[i - 1]) and _is_wordish(leaf):
+            total += 1
+    return total
+
+
+def _is_wordish(leaf: Leaf) -> bool:
+    """Whether ``leaf`` needs a separator when adjacent to another wordish leaf."""
+    return leaf.type in (token.NAME, token.NUMBER, token.STRING)
 
 
 def _is_disallowed_comparison_operand(node: LN) -> bool:
