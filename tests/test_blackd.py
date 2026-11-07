@@ -1,6 +1,8 @@
 import asyncio
 import gc
 import re
+import subprocess
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from threading import Event
@@ -21,6 +23,20 @@ except ImportError as e:
     raise RuntimeError("Please install Black with the 'd' extra") from e
 
 import black
+
+
+@pytest.mark.blackd
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows process pool worker limit")
+def test_blackd_startup_on_windows_with_many_cpus() -> None:
+    # A fresh interpreter ensures the CPU count is patched before importing blackd.
+    script = (
+        "from unittest.mock import patch\n"
+        "with patch('os.cpu_count', return_value=64):\n"
+        "    import blackd\n"
+        "    blackd.make_app()\n"
+        "    blackd.executor().shutdown()\n"
+    )
+    subprocess.run([sys.executable, "-c", script], check=True)
 
 
 @pytest.mark.blackd
