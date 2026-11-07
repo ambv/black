@@ -1039,13 +1039,25 @@ class StringParenStripper(StringTransformer, CustomSplitMapMixin):
 
                 # Keep the parens if stripping them would leave an already
                 # too-long line with a merged string group glued to an `=`
-                # prefix (e.g. a def parameter default). Black cannot split
-                # such a line after the fact, while the parens let the layout
-                # split the group at its custom breakpoints. See #3497.
+                # prefix (e.g. a def parameter default) or, when it doesn't
+                # fit on a line of its own and has a trailer ending in a
+                # non-empty bracket such as `.format(x)`, to a comparison
+                # operator. Black cannot split such a line after the fact,
+                # while the parens let the layout split the group at its
+                # custom breakpoints. See #3497 and #3409.
                 if (
                     not is_line_short_enough(line, mode=line.mode)
                     and is_valid_index(string_idx - 2)
-                    and LL[string_idx - 2].type == token.EQUAL
+                    and (
+                        LL[string_idx - 2].type == token.EQUAL
+                        or (
+                            LL[string_idx - 2].type in COMPARATORS
+                            and LL[next_idx - 1].type in CLOSING_BRACKETS
+                            and LL[next_idx - 2].type not in OPENING_BRACKETS
+                            and (line.depth + 1) * 4 + str_width(LL[string_idx].value)
+                            > self.line_length
+                        )
+                    )
                     and self.has_custom_splits(LL[string_idx].value)
                 ):
                     continue

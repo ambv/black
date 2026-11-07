@@ -116,6 +116,9 @@
 - Don't remove the parentheses around an implicitly concatenated string in a function
   argument default value when they are needed to keep the line within the line length
   limit (#5558)
+- Don't remove the parentheses around an implicitly concatenated string with a trailer
+  such as `.format(...)` used as a comparison operand when they are needed to keep the
+  line within the line length limit in the unstable `string_processing` feature (#XXXX)
 - Put each string literal of an implicit string concatenation on its own line inside the
   surrounding brackets when the literal ends with a newline, instead of joining them
   onto a single line (#5554)
